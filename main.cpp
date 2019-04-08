@@ -1,118 +1,68 @@
 #include <iostream>
-#include <thread>
-#include <unordered_map>
+#include <tuple>
 #include <vector>
-#include <fstream>
 #include <map>
-#include <future>
-#include <math.h>
+#include <thread>
+#include <mutex>
+#include "time.h"
 
-
-template<typename T>
-void print(std::vector<T> const &v) {
-    for (auto i: v) {
-        std::cout << i << ' ';
-    }
-    std::cout << '\n';
-}
-
-template<typename T>
-std::vector<T> slice(std::vector<T> const &v, int m, int n) {
-    auto first = v.cbegin() + m;
-    auto last = v.cbegin() + n + 1;
-
-    std::vector<T> vec(first, last);
-    return vec;
-}
-
-void printMap(std::map<std::string, int> map) {
-    for (auto el : map) {
-        std::cout << el.first << " " << el.second << std::endl;
-    }
-}
-
-
-struct universalVector {
-private:
-    template<class T>
-    static std::unordered_map<const universalVector *, std::vector <T>> items;
-public:
-    template<class T>
-    void push_back(const T &_t) {
-        items<T>[this].push_back(_t);
-    }
-};
-
-template<class T>
-std::unordered_map<const universalVector *, std::vector < T>> universalVector::items;
-
-
-std::vector<std::string> read_file(std::string const &path) {
-    std::vector<std::string> res;
-    std::string num_1;
-
-    std::ifstream file(path);
-    if (file.is_open()) {
-        while (file >> num_1) {
-            res.push_back(num_1);
+std::vector<std::vector<int>> friends = { { 0, 1, 0, 1, 1, 0, 0, 0 },
+                                { 0, 0, 0, 1, 0, 0, 0, 1 },
+                                { 0, 0, 0, 1, 0, 1, 0, 0 },
+                                { 0, 0, 0, 0, 1, 0, 0, 1 },
+                                { 0, 0, 0, 0, 0, 1, 0, 0 },
+                                { 0, 0, 0, 0, 0, 0, 0, 0 },
+                                { 0, 0, 0, 0, 0, 0, 0, 1 },
+                                { 0, 0, 0, 0, 0, 0, 0, 0 } };
+std::mutex mut;
+ template<typename Itr>
+void f_friends(std::vector<std::vector<int>>::iterator begin, std::vector<std::vector<int>>::iterator end, int n, Itr res_begin){
+    std::vector<int> friends_list;
+    std::map<std::tuple<int, int>, std::vector<int>> pair_map;
+    for(auto itr = begin;itr!=end;itr++) {
+        int k = 0;
+        for (auto itr2 = (*itr).begin(); itr2 != (*itr).end(); itr2++, k++) {
+            if (*itr2 != 0) friends_list.push_back(k);
         }
-        file.close();
-    } else {
-        throw std::invalid_argument("File not found");
+        for (int i = 0; i < friends_list.size(); i++) {
+            pair_map.insert(std::pair<std::tuple<int, int>, std::vector<int>>(std::tuple<int, int>(n, friends_list[i]),
+                                                                              friends_list));
+        }
+        mut.lock();
+        *res_begin = pair_map;
+        res_begin++;
+        mut.unlock();
+        pair_map.clear();
+        friends_list.clear();
+        n++;
     }
-    if (res.empty()) {
-        throw std::invalid_argument("File is empty");
-    }
-    return res;
 }
 
-
-std::map<std::string, int> wordCount(std::vector<std::string> data) {//, std::vector<std::map<std::string, int>> &res) {
-    std::map<std::string, int> word_map;
-
-    for(const std::string & word : data) {
-        word_map[word]++;
+template<typename Fn, typename Itr1, typename Itr2>
+void mymap(Fn fn, Itr1 begin, Itr1 end, Itr2 res_begin){
+    int i = 0;
+    int threads_number = 4;
+    std::vector<std::thread> threads;
+    int size = end - begin;
+    int rem = size%threads_number;
+    int step = (size-rem)/threads_number;
+    for(auto itr = begin; itr != end;i++){
+        threads.emplace_back(std::thread(fn, itr, itr+step+rem, i, res_begin));
+        itr+=step+rem;
+        res_begin+=step+rem;
+        rem = 0;
     }
 
-    printMap(word_map);
-
-    return word_map;
-}
-
-
-void map(std::map<std::string, int> (*func)(std::vector<std::string>), std::string input) {//, std::vector<std::map<std::string, int>>), std::string input) {
-    std::vector <std::string> data = read_file(input);
-    unsigned int cores = std::thread::hardware_concurrency();
-
-    std::vector<std::vector<std::map<std::string, int>>> res(cores, std::vector<std::map<std::string, int>>());
-    std::vector <std::thread> threads;
-
-    int step = floor(data.size() / cores);
-    int start = 0, finish = 0;
-    for (int i = 0; i < cores - 1; ++i) {
-        threads.emplace_back(wordCount, slice(data, start, finish += step));
-        start = finish + 1;
-        finish++;
+    for(auto &t:threads){
+        t.join();
     }
-
-    // std::map<std::string ,int> something;
-    // threads.emplace_back([&], {something = wordCount(slice(data, finish, data.size()));});
-    threads.emplace_back(wordCount, slice(data, finish, data.size()));
-
-    for (int j = 0; j < cores; ++j) {
-        threads[j].join();
-    }
-
 }
 
-int main() {
+int main(){
+    auto start = get_current_time_fenced();
+    std::vector<std::map<std::tuple<int, int>, std::vector<int>>> result(8);
+    mymap(f_friends<std::vector<std::map<std::tuple<int, int>, std::vector<int>>>::iterator>, friends.begin(), friends.end(), result.begin());
+    auto finish = get_current_time_fenced();
+    std::cout<<to_us(finish-start);
 
-    map(wordCount, "../input.txt");
-
-    unsigned int cores = std::thread::hardware_concurrency();
-    std::cout << "Number of cores: " << cores / 2 << std::endl;
-
-    return 0;
 }
-
-

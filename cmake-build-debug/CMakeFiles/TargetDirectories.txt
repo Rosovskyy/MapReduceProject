@@ -1,0 +1,3 @@
+C:/Users/vaitovich/CLionProjects/mapreduce/cmake-build-debug/CMakeFiles/mapreduce.dir
+C:/Users/vaitovich/CLionProjects/mapreduce/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/vaitovich/CLionProjects/mapreduce/cmake-build-debug/CMakeFiles/rebuild_cache.dir

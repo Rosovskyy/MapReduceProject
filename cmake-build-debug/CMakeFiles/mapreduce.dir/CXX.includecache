@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+C:/Users/vaitovich/CLionProjects/mapreduce/main.cpp
+iostream
+-
+tuple
+-
+vector
+-
+map
+-
+thread
+-
+mutex
+-
+time.h
+C:/Users/vaitovich/CLionProjects/mapreduce/time.h
+
+C:/Users/vaitovich/CLionProjects/mapreduce/time.h
+iostream
+-
+chrono
+-
+atomic
+-
+
