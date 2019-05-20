@@ -3,4 +3,4 @@ project(mapreduce)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(mapreduce main.cpp time.h)
+add_executable(mapreduce map.cpp time.h)
