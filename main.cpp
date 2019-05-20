@@ -8,109 +8,100 @@
 #include <math.h>
 
 
-template<typename T>
-void print(std::vector<T> const &v) {
-    for (auto i: v) {
-        std::cout << i << ' ';
-    }
-    std::cout << '\n';
-}
 
-template<typename T>
-std::vector<T> slice(std::vector<T> const &v, int m, int n) {
-    auto first = v.cbegin() + m;
-    auto last = v.cbegin() + n + 1;
-
-    std::vector<T> vec(first, last);
-    return vec;
-}
-
-void printMap(std::map<std::string, int> map) {
+template <typename first, typename second>
+void printMap(std::map<first, second> map) {
     for (auto el : map) {
         std::cout << el.first << " " << el.second << std::endl;
     }
 }
 
-
-struct universalVector {
-private:
-    template<class T>
-    static std::unordered_map<const universalVector *, std::vector <T>> items;
-public:
-    template<class T>
-    void push_back(const T &_t) {
-        items<T>[this].push_back(_t);
-    }
-};
-
-template<class T>
-std::unordered_map<const universalVector *, std::vector < T>> universalVector::items;
-
-
-std::vector<std::string> read_file(std::string const &path) {
-    std::vector<std::string> res;
-    std::string num_1;
-
-    std::ifstream file(path);
-    if (file.is_open()) {
-        while (file >> num_1) {
-            res.push_back(num_1);
+std::map<std::string, int> merge_two_maps(std::map<std::string, int> first, std::map<std::string, int> second) {//, std::vector<std::map<std::string, int>> &res) {
+    for (auto el : first) {
+        if (!(second.find(el.first) == second.end())) {
+            first[el.first] += second[el.first];
         }
-        file.close();
-    } else {
-        throw std::invalid_argument("File not found");
     }
-    if (res.empty()) {
-        throw std::invalid_argument("File is empty");
+
+    for (auto el : second) {
+        if (first.find(el.first) == first.end()) {
+            first[el.first] = el.second;
+        }
     }
-    return res;
+
+    return first;
 }
 
 
-std::map<std::string, int> wordCount(std::vector<std::string> data) {//, std::vector<std::map<std::string, int>> &res) {
-    std::map<std::string, int> word_map;
+template <typename Data, typename Fn>
+Data reduced(std::vector<Data> res, Fn fn) {
 
-    for(const std::string & word : data) {
-        word_map[word]++;
+    Data result = res[0];
+    for (int i = 1; i < res.size(); ++i) {
+        result = merge_two_maps(result, res[i]);
     }
 
-    printMap(word_map);
+    return result;
 
-    return word_map;
 }
 
+template <typename Data, typename Fn>
+Data reduce(std::vector<Data> data, Fn fn) {
 
-void map(std::map<std::string, int> (*func)(std::vector<std::string>), std::string input) {//, std::vector<std::map<std::string, int>>), std::string input) {
-    std::vector <std::string> data = read_file(input);
-    unsigned int cores = std::thread::hardware_concurrency();
+    unsigned int thread_num = std::thread::hardware_concurrency() * 2;
+    std::vector<std::thread> all_threads;
+    std::mutex m;
 
-    std::vector<std::vector<std::map<std::string, int>>> res(cores, std::vector<std::map<std::string, int>>());
-    std::vector <std::thread> threads;
 
-    int step = floor(data.size() / cores);
-    int start = 0, finish = 0;
-    for (int i = 0; i < cores - 1; ++i) {
-        threads.emplace_back(wordCount, slice(data, start, finish += step));
-        start = finish + 1;
-        finish++;
+    std::vector<Data> results = data;
+
+    int start = 0, finish = results.size() - 1;
+    int length = finish - start;
+
+
+    int number = floor(length / 2);
+    int threadStart = 0, threadFinish = number;
+    if (length % 2 == 0) {
+        number++;
     }
 
-    // std::map<std::string ,int> something;
-    // threads.emplace_back([&], {something = wordCount(slice(data, finish, data.size()));});
-    threads.emplace_back(wordCount, slice(data, finish, data.size()));
+    std::cout << number << std::endl;
 
-    for (int j = 0; j < cores; ++j) {
-        threads[j].join();
+    for (int i = 0; i < ceil(log2(data.size())); ++i) {
+        int count = 0;
+        for (int j = start; j < finish; j+=2) {
+            if (j + 1 == results.size()) {
+                count += 1;
+                continue;
+            }
+            all_threads.emplace_back(fn, results[j], results[j+1], std::ref(results), std::ref(m));
+        }
+
+        for (int k = threadStart; k < threadFinish; ++k) {
+            all_threads[k].join();
+        }
+        start = finish - count;
+        finish += finish - count;
     }
+
+    Data result = results[result.size() - 1];
+
+    return result;
 
 }
 
 int main() {
+    std::map<std::string, int> data1;
+    data1["world"] = 2;
+    data1["hello"] = 3;
+    data1["allah"] = 1;
+    std::map<std::string, int> data2;
+    data2["world"] = 4;
+    data2["hello"] = 1;
+    data2["omg"] = 1;
+    std::vector<std::map<std::string, int>> vec = {data1, data2};
 
-    map(wordCount, "../input.txt");
-
-    unsigned int cores = std::thread::hardware_concurrency();
-    std::cout << "Number of cores: " << cores / 2 << std::endl;
+    printMap(reduced(vec, merge_two_maps));
 
     return 0;
 }
