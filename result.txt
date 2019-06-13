@@ -1,0 +1,3 @@
+Results for prime numbers calculating on 3mb file:
+    One thread - 11831746
+    Thread::HardwareConcurency - 3297594
